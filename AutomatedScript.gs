@@ -38,7 +38,8 @@ function onSubmit(e){
 }
 
 function Tester(){
-  getFixedCharge("Domestic", 12, 1, 2.472)
+  getEC("Domestic", 15153.72, 1272, 12);
+  //getFixedCharge("Domestic", 12, 1, 2.472)
 }
 
 function getSlab(supply){
@@ -83,29 +84,32 @@ function getFactor(supply, status){
 
 }
 
-function getSlabbedEC(unit, slab, months){
+function getSlabbedEC(unit, months){
   
-  var amount0 = 0;
-  var amount1 = 0;
-  var amount2 = 0;
+  var val0 = 0;
+  var val1 = 0;
+  var val2 = 0;
 
   if(unit <= 100 * months){
-    amount0 = unit * slab[0];  
+    val0 = unit;  
   }
   else{
-    amount0 = 100 * months * slab[0];
+    val0 = 100 * months;
     unit = unit - (100 * months);
     if(unit <= 100 * months){
-      amount1 = unit * slab[1];
+      val1 = unit;
     }
     else{
-      amount1 = 100 * months * slab[1];
+      val1 = 100 * months;
       unit = unit - (100 * months);
-      amount2 = unit * slab[2];
+      val2 = unit;
     }
   }
-  console.log(amount0, amount1, amount2);
-  return (amount0 + amount1 + amount2);
+  console.log(val0, val1, val2);
+
+  const slabWiseCharges = [val0, val1, val2];
+  
+  return slabWiseCharges;
 }
 
 function getL(load, factor, days, hour){
@@ -120,12 +124,22 @@ function getEC(supply, TAU, BU, months){
 
   const slab = getSlab(supply);
 
-  const totalEC = getSlabbedEC(TAU, slab, months);
-  const paidEC = getSlabbedEC(BU, slab, months);
+  const totalEC = getSlabbedEC(TAU, months);
+  const paidEC = getSlabbedEC(BU, months);
 
-  const EC = totalEC - paidEC;
+  const diff0 = totalEC[0] - paidEC[0];
+  const diff1 = totalEC[1] - paidEC[1];
+  const diff2 = totalEC[2] - paidEC[2];
 
-  console.log("Printing EC - ", totalEC, paidEC, EC);
+  const amount0 = diff0 * slab[0];
+  const amount1 = diff1 * slab[1];
+  const amount2 = diff2 * slab[2];
+
+  const finalAmount = amount0 + amount1 + amount2;
+
+  const EC = [totalEC[0], totalEC[1], totalEC[2], paidEC[0], paidEC[1], paidEC[2], slab[0], slab[1], slab[2], diff0, diff1, diff2, amount0, amount1, amount2, finalAmount];
+
+  console.log("Printing EC - ", EC);
   return EC;
 
 }
@@ -239,13 +253,28 @@ function Create_PDF(info) {
 
    // Computing energy charge based on slab, for domestic supply (DS) and non domestic supply (nds) different rates will be applied.
    const energyCharge = getEC(info['Category'][0], TAU, info['Billed Unit'][0], months);
-   body.replaceText("{energyCharge}", energyCharge);
+   body.replaceText("{totalEC0}", energyCharge[0]);
+   body.replaceText("{totalEC1}", energyCharge[1]);
+   body.replaceText("{totalEC2}", energyCharge[2]);
+   body.replaceText("{paidEC0}", energyCharge[3]);
+   body.replaceText("{paidEC1}", energyCharge[4]);
+   body.replaceText("{paidEC2}", energyCharge[5]);
+   body.replaceText("{slab0}", energyCharge[6]);
+   body.replaceText("{slab1}", energyCharge[7]);
+   body.replaceText("{slab2}", energyCharge[8]);
+   body.replaceText("{diff0}", energyCharge[9]);
+   body.replaceText("{diff1}", energyCharge[10]);
+   body.replaceText("{diff2}", energyCharge[11]);
+   body.replaceText("{amount0}", energyCharge[12]);
+   body.replaceText("{amount1}", energyCharge[13]);
+   body.replaceText("{amount2}", energyCharge[14]);
+   body.replaceText("{energyCharge}", energyCharge[15]);
 
    // Applying 6% additional charge to energy charge.
-   const ed = 0.06 * energyCharge;
+   const ed = 0.06 * energyCharge[15];
    body.replaceText("{ed}", ed);
 
-   const total = energyCharge + ed;
+   const total = energyCharge[15] + ed;
    body.replaceText("{total}", total);
 
    const fixedCharge = getFixedCharge(info['Category'][0], months, info['Sanctioned Load (in KW)'][0], info['Connected Load (in KW)'][0]);
