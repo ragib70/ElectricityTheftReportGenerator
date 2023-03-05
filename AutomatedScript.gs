@@ -46,15 +46,25 @@ function getSlab(supply){
   
   var slab0, slab1, slab2;
 
-  if(supply == "Domestic"){
+  if(supply == "Domestic2 Urban"){
     slab0 = SpreadsheetApp.getActiveSheet().getRange('AD3').getValue();
     slab1 = SpreadsheetApp.getActiveSheet().getRange('AD4').getValue();
     slab2 = SpreadsheetApp.getActiveSheet().getRange('AD5').getValue();
   }
-  else{
+  else if(supply == "Non Domestic2 Urban"){
     slab0 = SpreadsheetApp.getActiveSheet().getRange('AD8').getValue();
     slab1 = SpreadsheetApp.getActiveSheet().getRange('AD9').getValue();
     slab2 = SpreadsheetApp.getActiveSheet().getRange('AD10').getValue();
+  }
+  else  if(supply == "Domestic1 Rural"){
+    slab0 = SpreadsheetApp.getActiveSheet().getRange('AD19').getValue();
+    slab1 = SpreadsheetApp.getActiveSheet().getRange('AD20').getValue();
+    slab2 = SpreadsheetApp.getActiveSheet().getRange('AD21').getValue();
+  }
+  else if(supply == "Non Domestic1 Rural"){
+    slab0 = SpreadsheetApp.getActiveSheet().getRange('AD24').getValue();
+    slab1 = SpreadsheetApp.getActiveSheet().getRange('AD25').getValue();
+    slab2 = SpreadsheetApp.getActiveSheet().getRange('AD26').getValue();
   }
 
   console.log("Printing Slab - ", slab0, slab1, slab2);
@@ -73,7 +83,7 @@ function getFactor(supply, status){
     return factor;
   }
 
-  if(supply == "Domestic"){
+  if(supply == "Domestic1 Rural" || supply == "Domestic2 Urban"){
     factor = 0.3;
   }
   else{
@@ -84,24 +94,24 @@ function getFactor(supply, status){
 
 }
 
-function getSlabbedEC(unit, months){
+function getSlabbedEC(unit, months, range){
   
   var val0 = 0;
   var val1 = 0;
   var val2 = 0;
 
-  if(unit <= 100 * months){
+  if(unit <= range * months){
     val0 = unit;  
   }
   else{
-    val0 = 100 * months;
-    unit = unit - (100 * months);
-    if(unit <= 100 * months){
+    val0 = range * months;
+    unit = unit - (range * months);
+    if(unit <= range * months){
       val1 = unit;
     }
     else{
-      val1 = 100 * months;
-      unit = unit - (100 * months);
+      val1 = range * months;
+      unit = unit - (range * months);
       val2 = unit;
     }
   }
@@ -118,14 +128,14 @@ function getL(load, factor, days, hour){
 
 }
 
-function getEC(supply, TAU, BU, months){
+function getEC(supply, TAU, BU, months, range){
 
   console.log(supply, TAU, BU, months);
 
   const slab = getSlab(supply);
 
-  const totalEC = getSlabbedEC(TAU, months);
-  const paidEC = getSlabbedEC(BU, months);
+  const totalEC = getSlabbedEC(TAU, months, range);
+  const paidEC = getSlabbedEC(BU, months, range);
 
   const diff0 = totalEC[0] - paidEC[0];
   const diff1 = totalEC[1] - paidEC[1];
@@ -148,11 +158,17 @@ function getFixedChargeSlab(supply){
 
   var slab = 0;
 
-  if(supply == "Domestic"){
+  if(supply == "Domestic2 Urban"){
     slab = SpreadsheetApp.getActiveSheet().getRange('AD13').getValue();
   }
-  else{
+  else if(supply == "Non Domestic2 Urban"){
     slab = SpreadsheetApp.getActiveSheet().getRange('AD16').getValue();
+  }
+  else if(supply == "Domestic1 Rural"){
+    slab = SpreadsheetApp.getActiveSheet().getRange('AD29').getValue();
+  }
+  else if(supply == "Non Domestic1 Rural"){
+    slab = SpreadsheetApp.getActiveSheet().getRange('AD32').getValue();
   }
 
   console.log(slab);
@@ -181,6 +197,20 @@ function getFixedCharge(supply, months, sLoad, cLoad){
 
 }
 
+function getRange(supply){
+
+  var range = 0;
+
+  if(supply == "Domestic1 Rural"){
+    range = 50;
+  }
+  else {
+    range = 100;
+  }
+
+  return range;
+}
+
 function sendEmail(email,pdfFile,info){
   
   const emailContent = "CA Number - " + info['CA Number'][0];
@@ -203,6 +233,11 @@ function Create_PDF(info) {
 
   const months = (info['L1 Days'][0] / 365) * 12;
   const lFactor = getFactor(info['Category'][0], info['Consumer Status'][0]);
+  const slabRange = getRange(info['Category'][0]);
+  const range0 = slabRange;
+  const range1 = range0 + 1;
+  const range2 = range0 * 2;
+  const range3 = range2 + 1;
 
   
   console.log(body);
@@ -215,6 +250,10 @@ function Create_PDF(info) {
    body.replaceText("{address}", info['Consumer Address'][0]);
    body.replaceText("{sLoad}", info['Sanctioned Load (in KW)'][0]);
    body.replaceText("{cLoad}", info['Connected Load (in KW)'][0]);
+   body.replaceText("{range0}", range0);
+   body.replaceText("{range1}", range1);
+   body.replaceText("{range2}", range2);
+   body.replaceText("{range3}", range3);
    
    body.replaceText("{load1}", info['L1 Load'][0]);
    body.replaceText("{factor1}", lFactor);
@@ -252,7 +291,7 @@ function Create_PDF(info) {
    body.replaceText("{chargeableUnit}", (TAU - info['Billed Unit'][0]));
 
    // Computing energy charge based on slab, for domestic supply (DS) and non domestic supply (nds) different rates will be applied.
-   const energyCharge = getEC(info['Category'][0], TAU, info['Billed Unit'][0], months);
+   const energyCharge = getEC(info['Category'][0], TAU, info['Billed Unit'][0], months, slabRange);
    body.replaceText("{totalEC0}", energyCharge[0]);
    body.replaceText("{totalEC1}", energyCharge[1]);
    body.replaceText("{totalEC2}", energyCharge[2]);
